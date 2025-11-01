@@ -1,0 +1,9 @@
+/* Base styles - styled-components handles most styling */
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
