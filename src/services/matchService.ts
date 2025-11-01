@@ -157,3 +157,27 @@ export const deleteOngoingMatch = (matchId: number | undefined): boolean => {
   }
 };
 
+// Get match details by ID from history or ongoing matches
+export const getMatchDetails = async (matchId: number): Promise<MatchData | null> => {
+  try {
+    // Try to get from ongoing matches first
+    const ongoingMatches = getOngoingMatches();
+    const ongoingMatch = ongoingMatches.find((m: MatchData) => m.id === matchId);
+    if (ongoingMatch) {
+      return ongoingMatch;
+    }
+
+    // Try to get from completed matches
+    const completedMatches = await getMatchHistory();
+    const completedMatch = completedMatches.find((m: MatchData) => m.id === matchId);
+    if (completedMatch) {
+      return completedMatch;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error getting match details:', error);
+    return null;
+  }
+};
+

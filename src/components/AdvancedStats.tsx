@@ -164,26 +164,30 @@ const TableCell = styled.td`
   padding: 0.75rem;
 `;
 
-const ManhattanChart = styled.div`
+const LineChartContainer = styled.div`
   height: 12rem;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.25rem;
+  position: relative;
   margin-bottom: 0.5rem;
+  padding: 0.5rem 0;
 `;
 
-const Bar = styled.div<{ height: number }>`
-  flex: 1;
-  background: linear-gradient(to top, ${theme.colors.primary[600]}, ${theme.colors.primary[400]});
-  border-radius: 0.25rem 0.25rem 0 0;
-  cursor: pointer;
-  transition: all 0.2s;
-  height: ${props => props.height}%;
+const LineChartSvg = styled.svg`
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+`;
 
-  &:hover {
-    background: linear-gradient(to top, ${theme.colors.purple[600]}, ${theme.colors.purple[400]});
-  }
+const ChartGrid = styled.div`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+`;
+
+const GridLine = styled.div`
+  border-top: 1px solid ${theme.colors.gray[200]};
 `;
 
 const ChartLabels = styled.div`
@@ -243,129 +247,242 @@ const AdvancedStats: React.FC<AdvancedStatsProps> = ({ matchData }) => {
             <Clock size={16} />
             Balls Left
           </StatHeader>
-          <StatValue>88</StatValue>
+          <StatValue>
+            {matchData.totalOvers && matchData.overs ? (
+              (() => {
+                const totalBalls = matchData.totalOvers * 6;
+                const currentBalls = parseFloat(matchData.overs) * 6;
+                const ballsLeft = Math.max(0, Math.floor(totalBalls - currentBalls));
+                return ballsLeft;
+              })()
+            ) : 'N/A'}
+          </StatValue>
         </StatCard>
       </StatsGrid>
 
       <SectionCard>
         <SectionTitle>Recent Overs</SectionTitle>
-        <OverRow>
-          <span style={{ fontWeight: 500 }}>Over 35</span>
-          <BallsContainer>
-            {['1', '4', '0', '1', '2', '6'].map((run, i) => (
-              <Ball key={i} variant={run === '4' ? 'four' : run === '6' ? 'six' : undefined}>
-                {run}
-              </Ball>
-            ))}
-          </BallsContainer>
-          <span style={{ fontWeight: 700 }}>14 runs</span>
-        </OverRow>
-        <OverRow>
-          <span style={{ fontWeight: 500 }}>Over 34</span>
-          <BallsContainer>
-            {['0', '1', '1', '0', '2', '1'].map((run, i) => (
-              <Ball key={i}>{run}</Ball>
-            ))}
-          </BallsContainer>
-          <span style={{ fontWeight: 700 }}>5 runs</span>
-        </OverRow>
+        {matchData.oversHistory && matchData.oversHistory.length > 0 ? (
+          matchData.oversHistory.slice(0, 5).map((over: {overNumber: number; balls: Array<{type: string; runs: number; display: string; isWicket: boolean}>; runs: number}) => (
+            <OverRow key={over.overNumber}>
+              <span style={{ fontWeight: 500 }}>Over {over.overNumber}</span>
+              <BallsContainer>
+                {over.balls.map((ball, i) => (
+                  <Ball 
+                    key={i} 
+                    variant={ball.runs === 4 ? 'four' : ball.runs === 6 ? 'six' : ball.isWicket ? 'wicket' : undefined}
+                  >
+                    {ball.display}
+                  </Ball>
+                ))}
+              </BallsContainer>
+              <span style={{ fontWeight: 700 }}>{over.runs} {over.runs === 1 ? 'run' : 'runs'}</span>
+            </OverRow>
+          ))
+        ) : (
+          <OverRow>
+            <span style={{ color: theme.colors.gray[600], fontStyle: 'italic' }}>No overs recorded yet</span>
+          </OverRow>
+        )}
       </SectionCard>
 
-      <SectionCard>
-        <SectionTitle>
-          <Users size={20} />
-          Current Partnership
-        </SectionTitle>
-        <PartnershipCard highlighted>
-          <div>
-            <PlayerName>V. Kohli</PlayerName>
-            <PlayerStatus>Batting</PlayerStatus>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <PlayerScore color={theme.colors.primary[600]}>67*</PlayerScore>
-            <PlayerStatus>52 balls, SR: 128.8</PlayerStatus>
-          </div>
-        </PartnershipCard>
-        <PartnershipCard>
-          <div>
-            <PlayerName>S. Iyer</PlayerName>
-            <PlayerStatus>Batting</PlayerStatus>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <PlayerScore>34*</PlayerScore>
-            <PlayerStatus>28 balls, SR: 121.4</PlayerStatus>
-          </div>
-        </PartnershipCard>
-        <PartnershipInfo>
-          <span style={{ fontSize: '0.875rem', fontWeight: 500, color: theme.colors.gray[700] }}>Partnership</span>
-          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: theme.colors.purple[600] }}>101 runs (80 balls)</span>
-        </PartnershipInfo>
-      </SectionCard>
+      {matchData.batsmen && matchData.batsmen.length > 0 && (
+        <SectionCard>
+          <SectionTitle>
+            <Users size={20} />
+            Current Partnership
+          </SectionTitle>
+          {matchData.batsmen.slice(0, 2).map((batsman: any, idx: number) => {
+            const strikeRate = batsman.balls > 0 ? ((batsman.runs / batsman.balls) * 100).toFixed(1) : '0.0';
+            return (
+              <PartnershipCard key={idx} highlighted={idx === 0}>
+                <div>
+                  <PlayerName>{batsman.name} {idx === 0 ? '*' : ''}</PlayerName>
+                  <PlayerStatus>Batting</PlayerStatus>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <PlayerScore color={idx === 0 ? theme.colors.primary[600] : undefined}>
+                    {batsman.runs}{idx === 0 ? '*' : ''}
+                  </PlayerScore>
+                  <PlayerStatus>
+                    {batsman.balls} balls, SR: {strikeRate}
+                  </PlayerStatus>
+                </div>
+              </PartnershipCard>
+            );
+          })}
+          {matchData.batsmen && matchData.batsmen.length >= 2 && (
+            <PartnershipInfo>
+              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: theme.colors.gray[700] }}>Partnership</span>
+              <span style={{ fontSize: '1.25rem', fontWeight: 700, color: theme.colors.purple[600] }}>
+                {matchData.batsmen[0].runs + matchData.batsmen[1].runs} runs 
+                ({matchData.batsmen[0].balls + matchData.batsmen[1].balls} balls)
+              </span>
+            </PartnershipInfo>
+          )}
+        </SectionCard>
+      )}
 
-      <SectionCard>
-        <SectionTitle>
-          <Activity size={20} />
-          Bowling Analysis
-        </SectionTitle>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableHeader>Bowler</TableHeader>
-              <TableHeader align="center">O</TableHeader>
-              <TableHeader align="center">M</TableHeader>
-              <TableHeader align="center">R</TableHeader>
-              <TableHeader align="center">W</TableHeader>
-              <TableHeader align="center">Econ</TableHeader>
-            </TableRow>
-          </TableHead>
-          <tbody>
-            <TableRow>
-              <TableCell>M. Starc</TableCell>
-              <TableCell align="center">7</TableCell>
-              <TableCell align="center">0</TableCell>
-              <TableCell align="center">42</TableCell>
-              <TableCell align="center" style={{ fontWeight: 700, color: theme.colors.primary[600] }}>2</TableCell>
-              <TableCell align="center">6.0</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>P. Cummins</TableCell>
-              <TableCell align="center">7</TableCell>
-              <TableCell align="center">1</TableCell>
-              <TableCell align="center">38</TableCell>
-              <TableCell align="center" style={{ fontWeight: 700, color: theme.colors.primary[600] }}>1</TableCell>
-              <TableCell align="center">5.4</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>A. Zampa</TableCell>
-              <TableCell align="center">7</TableCell>
-              <TableCell align="center">0</TableCell>
-              <TableCell align="center">56</TableCell>
-              <TableCell align="center" style={{ fontWeight: 700, color: theme.colors.primary[600] }}>1</TableCell>
-              <TableCell align="center">8.0</TableCell>
-            </TableRow>
-          </tbody>
-        </Table>
-      </SectionCard>
+      {matchData.bowlers && matchData.bowlers.length > 0 && (
+        <SectionCard>
+          <SectionTitle>
+            <Activity size={20} />
+            Bowling Analysis
+          </SectionTitle>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeader>Bowler</TableHeader>
+                <TableHeader align="center">O</TableHeader>
+                <TableHeader align="center">M</TableHeader>
+                <TableHeader align="center">R</TableHeader>
+                <TableHeader align="center">W</TableHeader>
+                <TableHeader align="center">Econ</TableHeader>
+              </TableRow>
+            </TableHead>
+            <tbody>
+              {matchData.bowlers.map((bowler: any, idx: number) => {
+                const oversDisplay = Math.floor(bowler.overs) + '.' + (Math.round((bowler.overs % 1) * 6));
+                const economy = bowler.overs > 0 ? (bowler.runs / bowler.overs).toFixed(2) : '0.00';
+                return (
+                  <TableRow key={idx}>
+                    <TableCell>{bowler.name}</TableCell>
+                    <TableCell align="center">{oversDisplay}</TableCell>
+                    <TableCell align="center">{bowler.maidens || 0}</TableCell>
+                    <TableCell align="center">{bowler.runs || 0}</TableCell>
+                    <TableCell align="center" style={{ fontWeight: 700, color: bowler.wickets > 0 ? theme.colors.primary[600] : undefined }}>
+                      {bowler.wickets || 0}
+                    </TableCell>
+                    <TableCell align="center">{economy}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </tbody>
+          </Table>
+        </SectionCard>
+      )}
 
       <SectionCard>
         <SectionTitle>
           <BarChart3 size={20} />
-          Run Rate (Manhattan)
+          Run Rate (Line Graph)
         </SectionTitle>
-        <ManhattanChart>
-          {Array.from({length: 35}, (_, i) => {
-            const height = Math.random() * 100;
-            return (
-              <Bar key={i} height={height} title={`Over ${i + 1}`} />
-            );
-          })}
-        </ManhattanChart>
+        <LineChartContainer>
+          <ChartGrid>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <GridLine key={i} />
+            ))}
+          </ChartGrid>
+          <LineChartSvg viewBox="0 0 350 120" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor={theme.colors.primary[600]} stopOpacity="0.3" />
+                <stop offset="100%" stopColor={theme.colors.primary[600]} stopOpacity="0.05" />
+              </linearGradient>
+            </defs>
+            {(() => {
+              // Use actual run rate data from overs history
+              let dataPoints: Array<{x: number; y: number; value: number}> = [];
+              
+              if (matchData.oversHistory && matchData.oversHistory.length > 0) {
+                // Calculate run rate for each completed over
+                const runsArray = matchData.oversHistory.map((over: any) => over.runs || 0);
+                const maxRuns = Math.max(...runsArray, 12); // Use 12 as minimum to show range (0-12)
+                const minRuns = Math.min(...runsArray, 0);
+                const range = maxRuns - minRuns || 12;
+                const maxHeight = 100;
+                const padding = 10;
+                const availableHeight = maxHeight - padding * 2;
+                
+                dataPoints = matchData.oversHistory.slice().reverse().map((over: any, i: number) => {
+                  const normalizedRuns = ((over.runs || 0) - minRuns) / range;
+                  return {
+                    x: (i / Math.max(matchData.oversHistory.length - 1, 1)) * 350,
+                    y: padding + (availableHeight - normalizedRuns * availableHeight),
+                    value: over.runs || 0
+                  };
+                });
+              } else if (matchData.oversHistory && matchData.oversHistory.length === 0 && matchData.currentRR) {
+                // If no overs history but have current RR, show single point
+                const rr = parseFloat(String(matchData.currentRR)) || 0;
+                dataPoints = [{ x: 175, y: 60, value: rr }];
+              }
+              
+              if (dataPoints.length === 0) {
+                return <text x="175" y="60" textAnchor="middle" fontSize="12" fill={theme.colors.gray[400]}>No data</text>;
+              }
+              
+              const pathData = dataPoints.map((point, i) => 
+                `${i === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
+              ).join(' ');
+              
+              const areaPath = `${pathData} L ${dataPoints[dataPoints.length - 1].x} 120 L 0 120 Z`;
+              
+              return (
+                <>
+                  <path
+                    d={areaPath}
+                    fill="url(#lineGradient)"
+                  />
+                  <path
+                    d={pathData}
+                    fill="none"
+                    stroke={theme.colors.primary[600]}
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  {dataPoints.map((point, i) => (
+                    <circle
+                      key={i}
+                      cx={point.x}
+                      cy={point.y}
+                      r="4"
+                      fill={theme.colors.primary[600]}
+                      stroke="white"
+                      strokeWidth="2"
+                      style={{ cursor: 'pointer' }}
+                    />
+                  ))}
+                  {dataPoints.map((point, i) => (
+                    <line
+                      key={`line-${i}`}
+                      x1={point.x}
+                      y1={point.y}
+                      x2={point.x}
+                      y2={120}
+                      stroke={theme.colors.gray[200]}
+                      strokeWidth="0.5"
+                      strokeDasharray="2,2"
+                      opacity="0.5"
+                    />
+                  ))}
+                </>
+              );
+            })()}
+          </LineChartSvg>
+        </LineChartContainer>
         <ChartLabels>
-          <span>0</span>
-          <span>10</span>
-          <span>20</span>
-          <span>30</span>
-          <span>35 Overs</span>
+          <span>
+            {(() => {
+              if (matchData.oversHistory && matchData.oversHistory.length > 0) {
+                const runsArray = matchData.oversHistory.map((over: any) => over.runs || 0);
+                const minRuns = Math.min(...runsArray, 0);
+                return `0 runs (Min: ${minRuns})`;
+              }
+              return '0';
+            })()}
+          </span>
+          <span>
+            {(() => {
+              if (matchData.oversHistory && matchData.oversHistory.length > 0) {
+                const runsArray = matchData.oversHistory.map((over: any) => over.runs || 0);
+                const maxRuns = Math.max(...runsArray, 12);
+                return `${maxRuns} runs (Max)`;
+              }
+              return matchData.overs ? matchData.overs : '12';
+            })()}
+          </span>
         </ChartLabels>
       </SectionCard>
 

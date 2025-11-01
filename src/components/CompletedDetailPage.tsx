@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowLeft, Award } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Award, List, X } from 'lucide-react';
 import styled from 'styled-components';
 import { theme } from '../styles/theme';
 
@@ -172,16 +172,6 @@ const TableCell = styled.td`
   padding: 0.75rem;
 `;
 
-const ExtrasRow = styled.div`
-  padding: 1rem;
-  background: ${theme.colors.gray[50]};
-  border-radius: ${theme.borderRadius.md};
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.875rem;
-  margin-top: 1rem;
-`;
-
 const ComparisonGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
@@ -229,12 +219,6 @@ const PartnershipCard = styled.div<{ color: string }>`
   margin-bottom: 0.75rem;
 `;
 
-const ChartContainer = styled.div`
-  height: 16rem;
-  position: relative;
-  margin-bottom: 1rem;
-`;
-
 const MOTMCard = styled.div`
   background: linear-gradient(to bottom right, ${theme.colors.amber[400]}, ${theme.colors.orange[500]});
   border-radius: 1rem;
@@ -276,12 +260,164 @@ const MOTMStats = styled.div`
   opacity: 0.9;
 `;
 
+const ViewOversButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: ${theme.colors.primary[600]};
+  color: white;
+  border: none;
+  border-radius: ${theme.borderRadius.md};
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin: 1rem 0;
+
+  &:hover {
+    background: ${theme.colors.primary[700]};
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: ${theme.borderRadius.md};
+  padding: 1.5rem;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+`;
+
+const ModalTitle = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 700;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: ${theme.colors.gray[600]};
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: ${theme.borderRadius.sm};
+  transition: all 0.2s;
+
+  &:hover {
+    background: ${theme.colors.gray[100]};
+    color: ${theme.colors.gray[900]};
+  }
+`;
+
+const OverRowModal = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: ${theme.colors.gray[50]};
+  border-radius: ${theme.borderRadius.md};
+  margin-bottom: 0.75rem;
+`;
+
+const BallsContainerModal = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+`;
+
+const BallModal = styled.span<{ variant?: 'four' | 'six' | 'wicket' }>`
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: ${props => {
+    if (props.variant === 'four') return theme.colors.primary[100];
+    if (props.variant === 'six') return theme.colors.purple[100];
+    if (props.variant === 'wicket') return theme.colors.red[100];
+    return theme.colors.gray[200];
+  }};
+  color: ${props => {
+    if (props.variant === 'four') return theme.colors.primary[700];
+    if (props.variant === 'six') return theme.colors.purple[700];
+    if (props.variant === 'wicket') return theme.colors.red[700];
+    return theme.colors.gray[700];
+  }};
+`;
+
+const OverRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: ${theme.colors.gray[50]};
+  border-radius: ${theme.borderRadius.md};
+  margin-bottom: 0.75rem;
+`;
+
+const BallsContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+`;
+
+const Ball = styled.span<{ variant?: 'four' | 'six' | 'wicket' }>`
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: ${props => {
+    if (props.variant === 'four') return theme.colors.primary[100];
+    if (props.variant === 'six') return theme.colors.purple[100];
+    if (props.variant === 'wicket') return theme.colors.red[100];
+    return theme.colors.gray[200];
+  }};
+  color: ${props => {
+    if (props.variant === 'four') return theme.colors.primary[700];
+    if (props.variant === 'six') return theme.colors.purple[700];
+    if (props.variant === 'wicket') return theme.colors.red[700];
+    return theme.colors.gray[700];
+  }};
+`;
+
 interface CompletedDetailPageProps {
   selectedMatch: any;
   setCurrentView: (view: string | { view: string; matchData?: any }) => void;
 }
 
 const CompletedDetailPage: React.FC<CompletedDetailPageProps> = ({ selectedMatch, setCurrentView }) => {
+  const [showOversModal, setShowOversModal] = useState(false);
+
   if (!selectedMatch) return null;
 
   return (
@@ -316,102 +452,135 @@ const CompletedDetailPage: React.FC<CompletedDetailPageProps> = ({ selectedMatch
       <StatsGrid>
         <StatCard>
           <StatLabel>Highest Score</StatLabel>
-          <StatValue color={theme.colors.primary[600]}>87</StatValue>
-          <StatName>J. Root</StatName>
+          <StatValue color={theme.colors.primary[600]}>
+            {selectedMatch.batsmen && selectedMatch.batsmen.length > 0
+              ? Math.max(...selectedMatch.batsmen.map((b: any) => b.runs || 0))
+              : 0}
+          </StatValue>
+          <StatName>
+            {selectedMatch.batsmen && selectedMatch.batsmen.length > 0
+              ? selectedMatch.batsmen.reduce((max: any, b: any) => (b.runs || 0) > (max.runs || 0) ? b : max, selectedMatch.batsmen[0])?.name || 'N/A'
+              : 'N/A'}
+          </StatName>
         </StatCard>
         <StatCard>
           <StatLabel>Best Bowling</StatLabel>
-          <StatValue color={theme.colors.purple[600]}>4/45</StatValue>
-          <StatName>C. Woakes</StatName>
+          <StatValue color={theme.colors.purple[600]}>
+            {(() => {
+              if (!selectedMatch.bowlers || selectedMatch.bowlers.length === 0) return '0/0';
+              const bestBowler = selectedMatch.bowlers.reduce((best: any, bowler: any) => {
+                const bestWickets = best.wickets || 0;
+                const bowlerWickets = bowler.wickets || 0;
+                if (bowlerWickets > bestWickets) return bowler;
+                if (bowlerWickets === bestWickets && (bowler.runs || 0) < (best.runs || 999)) return bowler;
+                return best;
+              }, selectedMatch.bowlers[0]);
+              return `${bestBowler.wickets || 0}/${bestBowler.runs || 0}`;
+            })()}
+          </StatValue>
+          <StatName>
+            {selectedMatch.bowlers && selectedMatch.bowlers.length > 0
+              ? selectedMatch.bowlers.reduce((best: any, bowler: any) => {
+                  const bestWickets = best.wickets || 0;
+                  const bowlerWickets = bowler.wickets || 0;
+                  if (bowlerWickets > bestWickets) return bowler;
+                  if (bowlerWickets === bestWickets && (bowler.runs || 0) < (best.runs || 999)) return bowler;
+                  return best;
+                }, selectedMatch.bowlers[0])?.name || 'N/A'
+              : 'N/A'}
+          </StatName>
         </StatCard>
         <StatCard>
           <StatLabel>Sixes</StatLabel>
-          <StatValue color={theme.colors.green[600]}>18</StatValue>
+          <StatValue color={theme.colors.green[600]}>
+            {selectedMatch.batsmen && selectedMatch.batsmen.length > 0
+              ? selectedMatch.batsmen.reduce((sum: number, b: any) => sum + (b.sixes || 0), 0)
+              : 0}
+          </StatValue>
           <StatName>Total</StatName>
         </StatCard>
         <StatCard>
           <StatLabel>Fours</StatLabel>
-          <StatValue color={theme.colors.orange[600]}>42</StatValue>
+          <StatValue color={theme.colors.orange[600]}>
+            {selectedMatch.batsmen && selectedMatch.batsmen.length > 0
+              ? selectedMatch.batsmen.reduce((sum: number, b: any) => sum + (b.fours || 0), 0)
+              : 0}
+          </StatValue>
           <StatName>Total</StatName>
         </StatCard>
       </StatsGrid>
 
-      <SectionCard>
-        <SectionTitle>{selectedMatch.team1} Innings</SectionTitle>
-        <Table>
-          <thead>
-            <TableRow>
-              <TableHeader>Batsman</TableHeader>
-              <TableHeader align="center">R</TableHeader>
-              <TableHeader align="center">B</TableHeader>
-              <TableHeader align="center">4s</TableHeader>
-              <TableHeader align="center">6s</TableHeader>
-              <TableHeader align="center">SR</TableHeader>
-            </TableRow>
-          </thead>
-          <tbody>
-            <TableRow>
-              <TableCell>
-                <div style={{ fontWeight: 500 }}>J. Bairstow</div>
-                <div style={{ fontSize: '0.75rem', color: theme.colors.gray[600] }}>c Khan b Afridi</div>
-              </TableCell>
-              <TableCell align="center" style={{ fontWeight: 700 }}>72</TableCell>
-              <TableCell align="center">58</TableCell>
-              <TableCell align="center">8</TableCell>
-              <TableCell align="center">3</TableCell>
-              <TableCell align="center">124.1</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>
-                <div style={{ fontWeight: 500 }}>J. Root</div>
-                <div style={{ fontSize: '0.75rem', color: theme.colors.gray[600] }}>b Rauf</div>
-              </TableCell>
-              <TableCell align="center" style={{ fontWeight: 700 }}>87</TableCell>
-              <TableCell align="center">74</TableCell>
-              <TableCell align="center">9</TableCell>
-              <TableCell align="center">2</TableCell>
-              <TableCell align="center">117.6</TableCell>
-            </TableRow>
-          </tbody>
-        </Table>
-        <ExtrasRow>
-          <span style={{ color: theme.colors.gray[600] }}>Extras: <span style={{ fontWeight: 600 }}>16 (lb 4, w 10, nb 2)</span></span>
-          <span style={{ color: theme.colors.gray[600] }}>Total: <span style={{ fontWeight: 700, fontSize: '1.125rem', color: theme.colors.gray[900] }}>{selectedMatch.team1Score}</span></span>
-        </ExtrasRow>
-      </SectionCard>
+      {selectedMatch.batsmen && selectedMatch.batsmen.length > 0 && (
+        <SectionCard>
+          <SectionTitle>{selectedMatch.team1} Innings</SectionTitle>
+          <Table>
+            <thead>
+              <TableRow>
+                <TableHeader>Batsman</TableHeader>
+                <TableHeader align="center">R</TableHeader>
+                <TableHeader align="center">B</TableHeader>
+                <TableHeader align="center">4s</TableHeader>
+                <TableHeader align="center">6s</TableHeader>
+                <TableHeader align="center">SR</TableHeader>
+              </TableRow>
+            </thead>
+            <tbody>
+              {selectedMatch.batsmen.map((batsman: any, idx: number) => {
+                const strikeRate = batsman.balls > 0 ? ((batsman.runs / batsman.balls) * 100).toFixed(1) : '0.0';
+                return (
+                  <TableRow key={idx}>
+                    <TableCell>
+                      <div style={{ fontWeight: 500 }}>{batsman.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: theme.colors.gray[600] }}>Not out</div>
+                    </TableCell>
+                    <TableCell align="center" style={{ fontWeight: 700 }}>{batsman.runs || 0}</TableCell>
+                    <TableCell align="center">{batsman.balls || 0}</TableCell>
+                    <TableCell align="center">{batsman.fours || 0}</TableCell>
+                    <TableCell align="center">{batsman.sixes || 0}</TableCell>
+                    <TableCell align="center">{strikeRate}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </tbody>
+          </Table>
+        </SectionCard>
+      )}
 
-      <SectionCard>
-        <SectionTitle>{selectedMatch.team2} Innings</SectionTitle>
-        <Table>
-          <thead>
-            <TableRow>
-              <TableHeader>Batsman</TableHeader>
-              <TableHeader align="center">R</TableHeader>
-              <TableHeader align="center">B</TableHeader>
-              <TableHeader align="center">4s</TableHeader>
-              <TableHeader align="center">6s</TableHeader>
-              <TableHeader align="center">SR</TableHeader>
-            </TableRow>
-          </thead>
-          <tbody>
-            <TableRow>
-              <TableCell>
-                <div style={{ fontWeight: 500 }}>B. Azam</div>
-                <div style={{ fontSize: '0.75rem', color: theme.colors.gray[600] }}>c Buttler b Woakes</div>
-              </TableCell>
-              <TableCell align="center" style={{ fontWeight: 700 }}>58</TableCell>
-              <TableCell align="center">52</TableCell>
-              <TableCell align="center">6</TableCell>
-              <TableCell align="center">1</TableCell>
-              <TableCell align="center">111.5</TableCell>
-            </TableRow>
-          </tbody>
-        </Table>
-        <ExtrasRow>
-          <span style={{ color: theme.colors.gray[600] }}>Extras: <span style={{ fontWeight: 600 }}>12 (lb 3, w 8, nb 1)</span></span>
-          <span style={{ color: theme.colors.gray[600] }}>Total: <span style={{ fontWeight: 700, fontSize: '1.125rem', color: theme.colors.gray[900] }}>{selectedMatch.team2Score}</span></span>
-        </ExtrasRow>
-      </SectionCard>
+      {selectedMatch.bowlers && selectedMatch.bowlers.length > 0 && (
+        <SectionCard>
+          <SectionTitle>Bowling Analysis</SectionTitle>
+          <Table>
+            <thead>
+              <TableRow>
+                <TableHeader>Bowler</TableHeader>
+                <TableHeader align="center">O</TableHeader>
+                <TableHeader align="center">M</TableHeader>
+                <TableHeader align="center">R</TableHeader>
+                <TableHeader align="center">W</TableHeader>
+                <TableHeader align="center">Econ</TableHeader>
+              </TableRow>
+            </thead>
+            <tbody>
+              {selectedMatch.bowlers.map((bowler: any, idx: number) => {
+                const oversDisplay = Math.floor(bowler.overs || 0) + '.' + (Math.round(((bowler.overs || 0) % 1) * 6));
+                const economy = (bowler.overs || 0) > 0 ? ((bowler.runs || 0) / (bowler.overs || 1)).toFixed(2) : '0.00';
+                return (
+                  <TableRow key={idx}>
+                    <TableCell>{bowler.name}</TableCell>
+                    <TableCell align="center">{oversDisplay}</TableCell>
+                    <TableCell align="center">{bowler.maidens || 0}</TableCell>
+                    <TableCell align="center">{bowler.runs || 0}</TableCell>
+                    <TableCell align="center" style={{ fontWeight: 700, color: (bowler.wickets || 0) > 0 ? theme.colors.primary[600] : undefined }}>
+                      {bowler.wickets || 0}
+                    </TableCell>
+                    <TableCell align="center">{economy}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </tbody>
+          </Table>
+        </SectionCard>
+      )}
 
       <ComparisonGrid>
         <ComparisonCard>
@@ -420,34 +589,75 @@ const CompletedDetailPage: React.FC<CompletedDetailPageProps> = ({ selectedMatch
             <ComparisonHeader>
               <span>Runs</span>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <span style={{ color: theme.colors.primary[600], fontWeight: 600 }}>334</span>
-                <span style={{ color: theme.colors.purple[600], fontWeight: 600 }}>286</span>
+                <span style={{ color: theme.colors.primary[600], fontWeight: 600 }}>
+                  {selectedMatch.team1Score ? parseInt(selectedMatch.team1Score.split('/')[0] || '0') : 0}
+                </span>
+                <span style={{ color: theme.colors.purple[600], fontWeight: 600 }}>
+                  {selectedMatch.team2Score ? parseInt(selectedMatch.team2Score.split('/')[0] || '0') : 0}
+                </span>
               </div>
             </ComparisonHeader>
             <BarContainer>
-              <Bar width={54} color={theme.colors.primary[600]} />
-              <Bar width={46} color={theme.colors.purple[600]} />
+              {(() => {
+                const team1Runs = selectedMatch.team1Score ? parseInt(selectedMatch.team1Score.split('/')[0] || '0') : 0;
+                const team2Runs = selectedMatch.team2Score ? parseInt(selectedMatch.team2Score.split('/')[0] || '0') : 0;
+                const totalRuns = team1Runs + team2Runs || 1;
+                const team1Percent = (team1Runs / totalRuns) * 100;
+                const team2Percent = (team2Runs / totalRuns) * 100;
+                return (
+                  <>
+                    <Bar width={team1Percent} color={theme.colors.primary[600]} />
+                    <Bar width={team2Percent} color={theme.colors.purple[600]} />
+                  </>
+                );
+              })()}
             </BarContainer>
           </ComparisonRow>
         </ComparisonCard>
         <ComparisonCard>
           <SectionTitle>Key Partnerships</SectionTitle>
-          <PartnershipCard color={theme.colors.primary[50]}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: theme.colors.gray[700] }}>Bairstow & Root</span>
-              <span style={{ fontSize: '1.125rem', fontWeight: 700, color: theme.colors.primary[600] }}>124</span>
-            </div>
-            <div style={{ fontSize: '0.75rem', color: theme.colors.gray[600] }}>23.4 overs • {selectedMatch.team1}</div>
-          </PartnershipCard>
-          <PartnershipCard color={theme.colors.purple[50]}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, color: theme.colors.gray[700] }}>Azam & Rizwan</span>
-              <span style={{ fontSize: '1.125rem', fontWeight: 700, color: theme.colors.purple[600] }}>89</span>
-            </div>
-            <div style={{ fontSize: '0.75rem', color: theme.colors.gray[600] }}>18.2 overs • {selectedMatch.team2}</div>
-          </PartnershipCard>
+          {selectedMatch.batsmen && selectedMatch.batsmen.length >= 2 && (
+            <PartnershipCard color={theme.colors.primary[50]}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                <span style={{ fontSize: '0.875rem', fontWeight: 500, color: theme.colors.gray[700] }}>
+                  {selectedMatch.batsmen[0]?.name} & {selectedMatch.batsmen[1]?.name}
+                </span>
+                <span style={{ fontSize: '1.125rem', fontWeight: 700, color: theme.colors.primary[600] }}>
+                  {(selectedMatch.batsmen[0]?.runs || 0) + (selectedMatch.batsmen[1]?.runs || 0)}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: theme.colors.gray[600] }}>
+                {(selectedMatch.batsmen[0]?.balls || 0) + (selectedMatch.batsmen[1]?.balls || 0)} balls • {selectedMatch.team1}
+              </div>
+            </PartnershipCard>
+          )}
         </ComparisonCard>
       </ComparisonGrid>
+
+      {selectedMatch.oversHistory && selectedMatch.oversHistory.length > 0 && (
+        <SectionCard>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <SectionTitle>Match Overs</SectionTitle>
+            <ViewOversButton onClick={() => setShowOversModal(true)}>
+              <List size={16} />
+              View All Overs
+            </ViewOversButton>
+          </div>
+          {selectedMatch.oversHistory.slice(0, 5).map((over: any) => (
+            <OverRow key={over.overNumber}>
+              <span style={{ fontWeight: 500 }}>Over {over.overNumber}</span>
+              <BallsContainer>
+                {over.balls.map((ball: any, i: number) => (
+                  <Ball key={i} variant={ball.runs === 4 ? 'four' : ball.runs === 6 ? 'six' : ball.isWicket ? 'wicket' : undefined}>
+                    {ball.display}
+                  </Ball>
+                ))}
+              </BallsContainer>
+              <span style={{ fontWeight: 700 }}>{over.runs} {over.runs === 1 ? 'run' : 'runs'}</span>
+            </OverRow>
+          ))}
+        </SectionCard>
+      )}
 
       <MOTMCard>
         <IconCircle>
@@ -459,6 +669,36 @@ const CompletedDetailPage: React.FC<CompletedDetailPageProps> = ({ selectedMatch
           <MOTMStats>65* (47) & 2 catches</MOTMStats>
         </MOTMContent>
       </MOTMCard>
+
+      {showOversModal && selectedMatch.oversHistory && (
+        <ModalOverlay onClick={() => setShowOversModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>All Overs - {selectedMatch.team1} vs {selectedMatch.team2}</ModalTitle>
+              <CloseButton onClick={() => setShowOversModal(false)}>
+                <X size={20} />
+              </CloseButton>
+            </ModalHeader>
+            <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              {selectedMatch.oversHistory.slice().reverse().map((over: any) => (
+                <OverRowModal key={over.overNumber}>
+                  <span style={{ fontWeight: 600, minWidth: '80px' }}>Over {over.overNumber}</span>
+                  <BallsContainerModal>
+                    {over.balls.map((ball: any, i: number) => (
+                      <BallModal key={i} variant={ball.runs === 4 ? 'four' : ball.runs === 6 ? 'six' : ball.isWicket ? 'wicket' : undefined}>
+                        {ball.display}
+                      </BallModal>
+                    ))}
+                  </BallsContainerModal>
+                  <span style={{ fontWeight: 700, color: theme.colors.primary[600], minWidth: '80px', textAlign: 'right' }}>
+                    {over.runs} {over.runs === 1 ? 'run' : 'runs'}
+                  </span>
+                </OverRowModal>
+              ))}
+            </div>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </PageContainer>
   );
 };

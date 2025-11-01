@@ -66,7 +66,7 @@ const ActionHeader = styled.div`
   margin-bottom: 0.75rem;
 `;
 
-const IconWrapper = styled.div<{ $color: string; $hoverColor?: string }>`
+const IconWrapper = styled.div<{ $color: string; $hoverColor?: string; $iconColor: string }>`
   width: 3rem;
   height: 3rem;
   background: ${props => props.$color};
@@ -75,9 +75,21 @@ const IconWrapper = styled.div<{ $color: string; $hoverColor?: string }>`
   align-items: center;
   justify-content: center;
   transition: background 0.2s;
+  position: relative;
+
+  svg {
+    position: relative;
+    z-index: 1;
+    color: ${props => props.$iconColor};
+    transition: color 0.2s;
+  }
 
   ${ActionCard}:hover & {
     background: ${props => props.$hoverColor || props.$color};
+    
+    svg {
+      color: ${props => props.$hoverColor ? 'white' : props.$iconColor};
+    }
   }
 `;
 
@@ -218,8 +230,8 @@ const HomePage: React.FC<HomePageProps> = ({ ongoingMatches, setSelectedMatch, s
           color={theme.colors.primary[500]}
         >
           <ActionHeader>
-            <IconWrapper $color={theme.colors.primary[100]} $hoverColor={theme.colors.primary[500]}>
-              <Plus size={24} color={theme.colors.primary[600]} />
+            <IconWrapper $color={theme.colors.primary[100]} $hoverColor={theme.colors.primary[500]} $iconColor={theme.colors.primary[600]}>
+              <Plus size={24} />
             </IconWrapper>
             <ChevronRight size={20} color={theme.colors.gray[400]} />
           </ActionHeader>
@@ -237,8 +249,8 @@ const HomePage: React.FC<HomePageProps> = ({ ongoingMatches, setSelectedMatch, s
           color={theme.colors.green[600]}
         >
           <ActionHeader>
-            <IconWrapper $color={theme.colors.green[100]} $hoverColor={theme.colors.green[600]}>
-              <Activity size={24} color={theme.colors.green[600]} />
+            <IconWrapper $color={theme.colors.green[100]} $hoverColor={theme.colors.green[600]} $iconColor={theme.colors.green[600]}>
+              <Activity size={24} />
             </IconWrapper>
             <span style={{ padding: '0.25rem 0.5rem', background: theme.colors.green[100], color: theme.colors.green[700], borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 500 }}>Live</span>
           </ActionHeader>
@@ -251,8 +263,8 @@ const HomePage: React.FC<HomePageProps> = ({ ongoingMatches, setSelectedMatch, s
           color={theme.colors.purple[500]}
         >
           <ActionHeader>
-            <IconWrapper $color={theme.colors.purple[100]} $hoverColor={theme.colors.purple[500]}>
-              <Calendar size={24} color={theme.colors.purple[600]} />
+            <IconWrapper $color={theme.colors.purple[100]} $hoverColor={theme.colors.purple[500]} $iconColor={theme.colors.purple[600]}>
+              <Calendar size={24} />
             </IconWrapper>
             <ChevronRight size={20} color={theme.colors.gray[400]} />
           </ActionHeader>
@@ -267,20 +279,54 @@ const HomePage: React.FC<HomePageProps> = ({ ongoingMatches, setSelectedMatch, s
             <SectionTitle>Live Matches</SectionTitle>
             <LiveBadge>
               <PulseDot />
-              Live
+              {ongoingMatches.filter((m: any) => m.status === 'Live').length} Live
             </LiveBadge>
           </SectionHeader>
-          {ongoingMatches.map(match => (
+          {ongoingMatches.filter((m: any) => m.status === 'Live' || m.status === 'Pending').map(match => {
+            // Check if user is creator for pending matches
+            const getUserId = () => {
+              let userId = localStorage.getItem('cricscorer_user_id');
+              if (!userId) {
+                userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                localStorage.setItem('cricscorer_user_id', userId);
+              }
+              return userId;
+            };
+            
+            const canAccessPending = match.status !== 'Pending' || match.creatorId === getUserId();
+            
+            return (
             <MatchCard
               key={match.id}
               onClick={() => {
-                setSelectedMatch(match);
-                setCurrentView(`/match/${match.id}`);
+                if (!canAccessPending) {
+                  alert('Only the match creator can access pending matches.');
+                  return;
+                }
+                
+                if (match.status === 'Pending') {
+                  // Resume pending match
+                  setSelectedMatch(match);
+                  setCurrentView({ view: `/scoreboard/${match.id}`, matchData: match });
+                } else {
+                  setSelectedMatch(match);
+                  setCurrentView(`/match/${match.id}`);
+                }
               }}
+              style={{ opacity: canAccessPending ? 1 : 0.6 }}
             >
               <MatchHeader>
                 <MatchVenue>{match.venue}</MatchVenue>
-                <span style={{ padding: '0.25rem 0.5rem', background: theme.colors.red[100], color: theme.colors.red[600], borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 500 }}>LIVE</span>
+                <span style={{ 
+                  padding: '0.25rem 0.5rem', 
+                  background: match.status === 'Pending' ? theme.colors.amber[100] : theme.colors.red[100], 
+                  color: match.status === 'Pending' ? theme.colors.amber[700] : theme.colors.red[600], 
+                  borderRadius: '9999px', 
+                  fontSize: '0.75rem', 
+                  fontWeight: 500 
+                }}>
+                  {match.status === 'Pending' ? 'PENDING' : 'LIVE'}
+                </span>
               </MatchHeader>
               <MatchScoreGrid>
                 <ScoreSection>
@@ -303,7 +349,8 @@ const HomePage: React.FC<HomePageProps> = ({ ongoingMatches, setSelectedMatch, s
                 <span>RRR: <strong style={{ color: theme.colors.red[600] }}>{match.requiredRR}</strong></span>
               </MatchStats>
             </MatchCard>
-          ))}
+            );
+          })}
         </LiveMatchesSection>
       )}
     </PageContainer>

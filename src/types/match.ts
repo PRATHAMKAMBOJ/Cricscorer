@@ -25,7 +25,7 @@ export interface MatchData {
   venue?: string;
   tossWinner?: string;
   elected?: string;
-  status?: string;
+  status?: 'Live' | 'Completed' | 'Pending' | 'Ended';
   createdAt?: string;
   updatedAt?: string;
   date?: string;
@@ -39,6 +39,8 @@ export interface MatchData {
   bowlers?: Bowler[];
   innings?: any[];
   currentInnings?: any;
+  creatorId?: string; // User ID who created the match
+  oversHistory?: Array<{overNumber: number; balls: Array<{type: string; runs: number; display: string; isWicket: boolean}>; runs: number}>;
   [key: string]: any; // Allow additional properties
 }
 

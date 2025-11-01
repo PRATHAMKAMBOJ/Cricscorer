@@ -1,7 +1,8 @@
 import React from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Power, MoreVertical } from 'lucide-react';
 import styled from 'styled-components';
 import { theme } from '../styles/theme';
+import { deleteOngoingMatch, saveCompletedMatch, getOngoingMatches } from '../services/matchService';
 
 const PageContainer = styled.div`
   display: flex;
@@ -124,6 +125,67 @@ const ResultText = styled.p`
   text-align: center;
 `;
 
+const MatchActions = styled.div`
+  position: relative;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+`;
+
+const ActionMenuButton = styled.button`
+  background: ${theme.colors.gray[100]};
+  border: none;
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: ${theme.colors.gray[600]};
+
+  &:hover {
+    background: ${theme.colors.gray[200]};
+    color: ${theme.colors.gray[900]};
+  }
+`;
+
+const ActionMenu = styled.div<{ $visible: boolean }>`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: white;
+  border-radius: ${theme.borderRadius.md};
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  padding: 0.5rem;
+  min-width: 150px;
+  z-index: 100;
+  display: ${props => props.$visible ? 'block' : 'none'};
+`;
+
+const MenuItem = styled.button`
+  width: 100%;
+  padding: 0.75rem;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: ${theme.borderRadius.sm};
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: ${theme.colors.gray[700]};
+  font-size: 0.875rem;
+  transition: all 0.2s;
+
+  &:hover {
+    background: ${theme.colors.gray[100]};
+    color: ${theme.colors.red[600]};
+  }
+`;
+
 interface HistoryPageProps {
   completedMatches: any[];
   setSelectedMatch: (match: any) => void;
@@ -131,6 +193,59 @@ interface HistoryPageProps {
 }
 
 const HistoryPage: React.FC<HistoryPageProps> = ({ completedMatches, setSelectedMatch, setCurrentView }) => {
+  const [openMenuId, setOpenMenuId] = React.useState<number | null>(null);
+
+  const getUserId = () => {
+    let userId = localStorage.getItem('cricscorer_user_id');
+    if (!userId) {
+      userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem('cricscorer_user_id', userId);
+    }
+    return userId;
+  };
+
+  const handleEndMatch = async (match: any) => {
+    if (match.creatorId !== getUserId()) {
+      alert('Only the match creator can end this match.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to end this match?\n\n${match.team1} vs ${match.team2}`)) {
+      return;
+    }
+
+    const result = calculateMatchResult(match);
+    const completedMatch = {
+      ...match,
+      status: 'Completed' as const,
+      result,
+      date: new Date().toISOString().split('T')[0],
+    };
+
+    await saveCompletedMatch(completedMatch);
+    deleteOngoingMatch(match.id);
+    setOpenMenuId(null);
+    
+    // Reload matches
+    window.location.reload();
+  };
+
+  const calculateMatchResult = (match: any) => {
+    const team1Score = parseInt(match.team1Score?.split('/')[0] || '0');
+    const team2Score = parseInt(match.team2Score?.split('/')[0] || '0');
+    
+    if (team1Score > team2Score) {
+      return `${match.team1} won by ${team1Score - team2Score} runs`;
+    } else if (team2Score > team1Score) {
+      return `${match.team2} won by ${team2Score - team1Score} runs`;
+    }
+    return 'Match tied';
+  };
+
+  // Get ongoing matches to check for pending/live matches
+  const ongoingMatches = getOngoingMatches();
+  const allMatches = [...completedMatches, ...ongoingMatches.filter(m => m.status === 'Pending')];
+
   return (
     <PageContainer>
       <BackButton onClick={() => setCurrentView('/')}>
@@ -148,17 +263,43 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ completedMatches, setSelected
       </PageHeader>
 
       <MatchesList>
-        {completedMatches.map(match => (
+        {allMatches.map(match => (
           <MatchCard
             key={match.id}
             onClick={() => {
-              setSelectedMatch(match);
-              setCurrentView(`/completed/${match.id}`);
+              if (match.status === 'Pending' && match.creatorId === getUserId()) {
+                // Allow creator to resume pending match
+                setSelectedMatch(match);
+                setCurrentView({ view: `/scoreboard/${match.id}`, matchData: match });
+              } else {
+                setSelectedMatch(match);
+                setCurrentView(`/completed/${match.id}`);
+              }
             }}
           >
             <MatchCardHeader>
               <MatchVenue>{match.venue}</MatchVenue>
-              <MatchDate>{match.date}</MatchDate>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {match.status === 'Pending' && (
+                  <span style={{ padding: '0.25rem 0.5rem', background: theme.colors.amber[100], color: theme.colors.amber[700], borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 500 }}>
+                    PENDING
+                  </span>
+                )}
+                <MatchDate>{match.date || match.createdAt?.split('T')[0]}</MatchDate>
+                {(match.status === 'Live' || match.status === 'Pending') && match.creatorId === getUserId() && (
+                  <MatchActions onClick={(e) => e.stopPropagation()}>
+                    <ActionMenuButton onClick={() => setOpenMenuId(openMenuId === match.id ? null : match.id)}>
+                      <MoreVertical size={16} />
+                    </ActionMenuButton>
+                    <ActionMenu $visible={openMenuId === match.id}>
+                      <MenuItem onClick={() => handleEndMatch(match)}>
+                        <Power size={16} />
+                        End Match
+                      </MenuItem>
+                    </ActionMenu>
+                  </MatchActions>
+                )}
+              </div>
             </MatchCardHeader>
             <MatchScoreGrid>
               <ScoreSection>
@@ -170,8 +311,14 @@ const HistoryPage: React.FC<HistoryPageProps> = ({ completedMatches, setSelected
                 <Score>{match.team2Score}</Score>
               </ScoreSection>
             </MatchScoreGrid>
-            <ResultBanner>
-              <ResultText>{match.result}</ResultText>
+            <ResultBanner style={{ 
+              background: match.status === 'Pending' ? theme.colors.amber[50] : theme.colors.green[50] 
+            }}>
+              <ResultText style={{ 
+                color: match.status === 'Pending' ? theme.colors.amber[700] : theme.colors.green[700] 
+              }}>
+                {match.status === 'Pending' ? 'Pending - Click to resume' : match.result}
+              </ResultText>
             </ResultBanner>
           </MatchCard>
         ))}

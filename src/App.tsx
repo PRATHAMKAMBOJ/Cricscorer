@@ -27,11 +27,14 @@ const AppContent: React.FC = () => {
     elected: ''
   });
 
+  // Note: getUserId is used in components where needed
+
   useEffect(() => {
     const loadMatches = async () => {
       const history = await getMatchHistory();
       setCompletedMatches(history);
       const ongoing = getOngoingMatches();
+      // Show all ongoing matches including Live and Pending
       setOngoingMatches(ongoing);
     };
     loadMatches();
@@ -194,8 +197,8 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom right, #f9fafb, #eff6ff)', padding: '1rem' }}>
-      <div style={{ maxWidth: '1152px', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(to bottom right, #f9fafb, #eff6ff)', padding: '1rem', overflowX: 'hidden' }}>
+      <div style={{ maxWidth: '1152px', margin: '0 auto', width: '100%' }}>
         <Routes>
           <Route 
             path="/" 

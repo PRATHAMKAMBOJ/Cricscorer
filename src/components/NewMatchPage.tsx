@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Coins } from 'lucide-react';
 import styled from 'styled-components';
 import { theme } from '../styles/theme';
 
@@ -136,12 +136,168 @@ interface NewMatchPageProps {
   setCurrentView: (view: string | { view: string; matchData?: any }) => void;
 }
 
+const ErrorMessage = styled.div`
+  color: ${theme.colors.red[600]};
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+`;
+
+const CheckboxContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+`;
+
+const Checkbox = styled.input`
+  width: 1.25rem;
+  height: 1.25rem;
+  cursor: pointer;
+`;
+
+const CheckboxLabel = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: ${theme.colors.gray[700]};
+`;
+
+const TossContainer = styled.div`
+  background: ${theme.colors.amber[50]};
+  border: 2px solid ${theme.colors.amber[200]};
+  border-radius: ${theme.borderRadius.md};
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+`;
+
+const TossButton = styled.button`
+  background: linear-gradient(to bottom right, ${theme.colors.amber[400]}, ${theme.colors.orange[500]});
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: ${theme.borderRadius.md};
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 1rem auto 0;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+
+  &:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const TossResult = styled.div`
+  margin-top: 1rem;
+  padding: 1rem;
+  background: white;
+  border-radius: ${theme.borderRadius.md};
+  font-weight: 600;
+  color: ${theme.colors.gray[900]};
+`;
+
 const NewMatchPage: React.FC<NewMatchPageProps> = ({ newMatchData, setNewMatchData, setCurrentView }) => {
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [wantToss, setWantToss] = useState(false);
+  const [tossResult, setTossResult] = useState<{ winner: string; result: 'Heads' | 'Tails' } | null>(null);
+  const [isTossing, setIsTossing] = useState(false);
+
+  useEffect(() => {
+    // Reset form when component mounts
+    setNewMatchData({
+      team1: '',
+      team2: '',
+      matchType: 'T20',
+      overs: '20',
+      venue: '',
+      tossWinner: '',
+      elected: ''
+    });
+    setErrors({});
+    setWantToss(false);
+    setTossResult(null);
+  }, [setNewMatchData]);
+
+  const flipToss = () => {
+    setIsTossing(true);
+    const result = Math.random() < 0.5 ? 'Heads' : 'Tails';
+    const winner = result === 'Heads' ? 'team1' : 'team2';
+    
+    setTimeout(() => {
+      setTossResult({ winner, result });
+      setNewMatchData({ ...newMatchData, tossWinner: winner });
+      setIsTossing(false);
+    }, 1000);
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: { [key: string]: string } = {};
+
+    if (!newMatchData.team1 || newMatchData.team1.trim() === '') {
+      newErrors.team1 = 'Team 1 name is required';
+    }
+
+    if (!newMatchData.team2 || newMatchData.team2.trim() === '') {
+      newErrors.team2 = 'Team 2 name is required';
+    }
+
+    if (newMatchData.team1 && newMatchData.team2 && newMatchData.team1.trim().toLowerCase() === newMatchData.team2.trim().toLowerCase()) {
+      newErrors.team2 = 'Team names must be different';
+    }
+
+    if (!newMatchData.matchType) {
+      newErrors.matchType = 'Match type is required';
+    }
+
+    if (!newMatchData.overs || newMatchData.overs.trim() === '') {
+      newErrors.overs = 'Overs is required';
+    } else {
+      const oversNum = parseInt(newMatchData.overs);
+      if (isNaN(oversNum) || oversNum <= 0 || oversNum > 300) {
+        newErrors.overs = 'Overs must be between 1 and 300';
+      }
+    }
+
+    if (!wantToss && !newMatchData.tossWinner) {
+      newErrors.tossWinner = 'Please select toss winner or flip the toss';
+    }
+
+    if (!newMatchData.elected) {
+      newErrors.elected = 'Please select elected option';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleStartMatch = () => {
-    if (!newMatchData.team1 || !newMatchData.team2) {
-      alert('Please enter both team names');
+    if (!validateForm()) {
       return;
     }
+    
+    // Get or create user ID (in a real app, this would come from user authentication)
+    const getUserId = () => {
+      let userId = localStorage.getItem('cricscorer_user_id');
+      if (!userId) {
+        userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('cricscorer_user_id', userId);
+      }
+      return userId;
+    };
+    
     const matchData = {
       id: Date.now(),
       team1: newMatchData.team1,
@@ -151,14 +307,15 @@ const NewMatchPage: React.FC<NewMatchPageProps> = ({ newMatchData, setNewMatchDa
       venue: newMatchData.venue || 'TBD',
       tossWinner: newMatchData.tossWinner,
       elected: newMatchData.elected,
-      status: 'Live',
+      status: 'Live' as const,
       createdAt: new Date().toISOString(),
+      creatorId: getUserId(),
       batsmen: [
-        { name: `${newMatchData.team1} Player 1`, runs: 0, balls: 0, fours: 0, sixes: 0 },
-        { name: `${newMatchData.team1} Player 2`, runs: 0, balls: 0, fours: 0, sixes: 0 },
+        { name: 'Player1', runs: 0, balls: 0, fours: 0, sixes: 0 },
+        { name: 'Player2', runs: 0, balls: 0, fours: 0, sixes: 0 },
       ],
       bowlers: [
-        { name: `${newMatchData.team2} Bowler 1`, overs: 0, runs: 0, wickets: 0, maidens: 0 },
+        { name: 'Bowler1', overs: 0, runs: 0, wickets: 0, maidens: 0 },
       ],
     };
       setCurrentView({ view: `/scoreboard/${matchData.id}`, matchData });
@@ -182,8 +339,15 @@ const NewMatchPage: React.FC<NewMatchPageProps> = ({ newMatchData, setNewMatchDa
                 type="text"
                 placeholder="Enter team name"
                 value={newMatchData.team1}
-                onChange={(e) => setNewMatchData({...newMatchData, team1: e.target.value})}
+                onChange={(e) => {
+                  setNewMatchData({...newMatchData, team1: e.target.value});
+                  if (errors.team1) {
+                    setErrors({...errors, team1: ''});
+                  }
+                }}
+                style={{ borderColor: errors.team1 ? theme.colors.red[500] : undefined }}
               />
+              {errors.team1 && <ErrorMessage>{errors.team1}</ErrorMessage>}
             </FormField>
             <FormField>
               <Label>Team 2</Label>
@@ -191,8 +355,15 @@ const NewMatchPage: React.FC<NewMatchPageProps> = ({ newMatchData, setNewMatchDa
                 type="text"
                 placeholder="Enter team name"
                 value={newMatchData.team2}
-                onChange={(e) => setNewMatchData({...newMatchData, team2: e.target.value})}
+                onChange={(e) => {
+                  setNewMatchData({...newMatchData, team2: e.target.value});
+                  if (errors.team2) {
+                    setErrors({...errors, team2: ''});
+                  }
+                }}
+                style={{ borderColor: errors.team2 ? theme.colors.red[500] : undefined }}
               />
+              {errors.team2 && <ErrorMessage>{errors.team2}</ErrorMessage>}
             </FormField>
           </FormGrid>
 
@@ -201,21 +372,38 @@ const NewMatchPage: React.FC<NewMatchPageProps> = ({ newMatchData, setNewMatchDa
               <Label>Match Type</Label>
               <Select
                 value={newMatchData.matchType}
-                onChange={(e) => setNewMatchData({...newMatchData, matchType: e.target.value})}
+                onChange={(e) => {
+                  setNewMatchData({...newMatchData, matchType: e.target.value});
+                  if (errors.matchType) {
+                    setErrors({...errors, matchType: ''});
+                  }
+                }}
+                style={{ borderColor: errors.matchType ? theme.colors.red[500] : undefined }}
               >
-                <option>T20</option>
-                <option>ODI</option>
-                <option>Test</option>
+                <option value="">Select match type</option>
+                <option value="T20">T20</option>
+                <option value="ODI">ODI</option>
+                <option value="Test">Test</option>
               </Select>
+              {errors.matchType && <ErrorMessage>{errors.matchType}</ErrorMessage>}
             </FormField>
             <FormField>
               <Label>Overs</Label>
               <Input
                 type="number"
                 placeholder="20"
+                min="1"
+                max="300"
                 value={newMatchData.overs}
-                onChange={(e) => setNewMatchData({...newMatchData, overs: e.target.value})}
+                onChange={(e) => {
+                  setNewMatchData({...newMatchData, overs: e.target.value});
+                  if (errors.overs) {
+                    setErrors({...errors, overs: ''});
+                  }
+                }}
+                style={{ borderColor: errors.overs ? theme.colors.red[500] : undefined }}
               />
+              {errors.overs && <ErrorMessage>{errors.overs}</ErrorMessage>}
             </FormField>
           </FormGrid>
 
@@ -229,40 +417,100 @@ const NewMatchPage: React.FC<NewMatchPageProps> = ({ newMatchData, setNewMatchDa
             />
           </FormField>
 
-          <FormField>
-            <Label>Toss Winner</Label>
-            <ButtonGroup>
-              <ToggleButton
-                active={newMatchData.tossWinner === 'team1'}
-                onClick={() => setNewMatchData({...newMatchData, tossWinner: 'team1'})}
-              >
-                Team 1
-              </ToggleButton>
-              <ToggleButton
-                active={newMatchData.tossWinner === 'team2'}
-                onClick={() => setNewMatchData({...newMatchData, tossWinner: 'team2'})}
-              >
-                Team 2
-              </ToggleButton>
-            </ButtonGroup>
-          </FormField>
+          <CheckboxContainer>
+            <Checkbox
+              type="checkbox"
+              id="wantToss"
+              checked={wantToss}
+              onChange={(e) => {
+                setWantToss(e.target.checked);
+                if (!e.target.checked) {
+                  setTossResult(null);
+                  setNewMatchData({...newMatchData, tossWinner: ''});
+                }
+              }}
+            />
+            <CheckboxLabel htmlFor="wantToss">
+              <Coins size={16} />
+              Want to flip toss?
+            </CheckboxLabel>
+          </CheckboxContainer>
+
+          {wantToss && (
+            <TossContainer>
+              <div style={{ marginBottom: '0.5rem' }}>
+                <strong>Flip the Toss</strong>
+              </div>
+              <TossButton onClick={flipToss} disabled={isTossing}>
+                <Coins size={20} />
+                {isTossing ? 'Flipping...' : 'Flip Toss'}
+              </TossButton>
+              {tossResult && (
+                <TossResult>
+                  Result: {tossResult.result} - {tossResult.winner === 'team1' ? newMatchData.team1 : newMatchData.team2} won the toss!
+                </TossResult>
+              )}
+            </TossContainer>
+          )}
+
+          {!wantToss && (
+            <FormField>
+              <Label>Toss Winner</Label>
+              <ButtonGroup>
+                <ToggleButton
+                  active={newMatchData.tossWinner === 'team1'}
+                  onClick={() => {
+                    setNewMatchData({...newMatchData, tossWinner: 'team1'});
+                    if (errors.tossWinner) {
+                      setErrors({...errors, tossWinner: ''});
+                    }
+                  }}
+                >
+                  Team 1
+                </ToggleButton>
+                <ToggleButton
+                  active={newMatchData.tossWinner === 'team2'}
+                  onClick={() => {
+                    setNewMatchData({...newMatchData, tossWinner: 'team2'});
+                    if (errors.tossWinner) {
+                      setErrors({...errors, tossWinner: ''});
+                    }
+                  }}
+                >
+                  Team 2
+                </ToggleButton>
+              </ButtonGroup>
+              {errors.tossWinner && <ErrorMessage>{errors.tossWinner}</ErrorMessage>}
+            </FormField>
+          )}
 
           <FormField>
             <Label>Elected to</Label>
             <ButtonGroup>
               <ToggleButton
                 active={newMatchData.elected === 'bat'}
-                onClick={() => setNewMatchData({...newMatchData, elected: 'bat'})}
+                onClick={() => {
+                  setNewMatchData({...newMatchData, elected: 'bat'});
+                  if (errors.elected) {
+                    setErrors({...errors, elected: ''});
+                  }
+                }}
               >
                 Bat
               </ToggleButton>
               <ToggleButton
                 active={newMatchData.elected === 'bowl'}
-                onClick={() => setNewMatchData({...newMatchData, elected: 'bowl'})}
+                onClick={() => {
+                  setNewMatchData({...newMatchData, elected: 'bowl'});
+                  if (errors.elected) {
+                    setErrors({...errors, elected: ''});
+                  }
+                }}
               >
                 Bowl
               </ToggleButton>
             </ButtonGroup>
+            {errors.elected && <ErrorMessage>{errors.elected}</ErrorMessage>}
           </FormField>
 
           <SubmitButton onClick={handleStartMatch}>
