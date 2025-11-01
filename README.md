@@ -71,3 +71,14 @@ export default defineConfig([
   },
 ])
 ```
+Okay now comes to the logic part
+- Implement validations in the form.
+- Create services to get match history list and details, store ongoing match. and just for the demo add 1 match history for mock data
+- Revamp the elements such as drop down to match the styling
+- the bar chart for run rate is not visually visible the bars, so istead create a line graph
+- Options to add, edit the players if not then name as Player1 -PLayer 2
+- The Icons hover designs are hiding the main icons fix that too.
+- Categroise the scorecards for Extras, Runs, and wickets and show some animation when wicket , or boundaries are hit. place undo option in a different place
+- Show alerts when saving the match, ending the match
+- Scroll upto the content only no more scroll in page
+- Reset the new match form when visiting again
